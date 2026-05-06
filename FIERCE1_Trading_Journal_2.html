@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIERCE1 Systems — Trading Journal</title>
+<!-- Google APIs — loaded synchronously to avoid race conditions -->
+<script src="https://apis.google.com/js/api.js"></script>
+<script src="https://accounts.google.com/gsi/client"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&family=Rajdhani:wght@400;500;600;700&family=Bebas+Neue&display=swap');
+:root{--bg:#050508;--bg2:#08090e;--bg3:#0d0f17;--bg4:#121520;--bg5:#171b28;--border:rgba(120,100,255,0.08);--border2:rgba(120,100,255,0.2);--accent:#7c5cfc;--accent-g:#9d7fff;--accent-d:#4a34b8;--bull:#00d68f;--bear:#ff3b5c;--warn:#f0b429;--blue:#38bdf8;--google:#4285f4;--text:#cdd4e0;--text-dim:#5a6070;--text-muted:#7a8494}
+*{margin:0;padding:0;box-sizing:border-box}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");pointer-events:none;z-index:9999;opacity:0.4;mix-blend-mode:overlay}
+body::after{content:'';position:fixed;top:-15vh;left:50%;transform:translateX(-50%);width:800px;height:400px;background:radial-gradient(ellipse at center,rgba(80,50,210,0.06) 0%,transparent 70%);pointer-events:none;z-index:0}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;overflow-x:hidden;font-size:15px;line-height:1.5}
+
+/* ── HEADER ── */
+header{background:rgba(5,5,10,0.94);backdrop-filter:blur(20px);border-bottom:1px solid var(--border2);padding:0 20px;position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:16px;height:52px;box-shadow:0 1px 0 rgba(124,92,252,0.1),0 4px 40px rgba(0,0,0,0.7)}
+.logo-wrap{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;line-height:1;flex-shrink:0;gap:1px}
+.logo-main{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:0.16em;background:linear-gradient(135deg,#fff 0%,var(--accent-g) 55%,var(--accent) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.logo-sub{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:0.2em;color:var(--text-dim);text-transform:uppercase}
+.hdr-div{width:1px;height:28px;background:var(--border2);flex-shrink:0}
+nav{display:flex;gap:2px;flex:1;overflow-x:auto;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav button{background:none;border:none;color:var(--text-dim);font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:5px 10px;border-radius:3px;cursor:pointer;white-space:nowrap;transition:all 0.15s}
+nav button:hover{color:var(--text);background:rgba(124,92,252,0.08)}
+nav button.active{color:var(--accent-g);background:rgba(124,92,252,0.12);box-shadow:inset 0 0 0 1px rgba(124,92,252,0.22)}
+
+/* ── DRIVE STATUS BAR ── */
+#drive-bar{display:flex;align-items:center;gap:10px;flex-shrink:0}
+#drive-status{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:0.1em;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.ds-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.ds-dot.disconnected{background:var(--text-dim)}
+.ds-dot.connecting{background:var(--warn);animation:pulse 1s infinite}
+.ds-dot.connected{background:var(--bull);box-shadow:0 0 6px var(--bull)}
+.ds-dot.syncing{background:var(--blue);animation:pulse 0.6s infinite}
+.ds-dot.error{background:var(--bear)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+#ds-text{color:var(--text-muted)}
+
+.btn-gdrive{display:inline-flex;align-items:center;gap:6px;background:rgba(66,133,244,0.12);border:1px solid rgba(66,133,244,0.25);color:#6ba3f5;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:5px 12px;border-radius:3px;cursor:pointer;transition:all 0.15s;flex-shrink:0}
+.btn-gdrive:hover{background:rgba(66,133,244,0.2)}
+.btn-gdrive.connected{background:rgba(0,214,143,0.1);border-color:rgba(0,214,143,0.25);color:var(--bull)}
+.btn-gdrive svg{width:12px;height:12px;fill:currentColor}
+
+main{max-width:1400px;margin:0 auto;padding:28px 24px;position:relative;z-index:1}
+section{display:none}
+section.active{display:block;animation:fadeIn 0.2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+.page-title{margin-bottom:24px}
+.page-title h1{font-family:'Bebas Neue',sans-serif;font-size:40px;letter-spacing:0.06em;line-height:1;margin-bottom:4px}
+.page-title p{color:var(--text-muted);font-size:12px;letter-spacing:0.04em}
+.accent{color:var(--accent-g)}.bull{color:var(--bull)}.bear{color:var(--bear)}.warn{color:var(--warn)}.blue{color:var(--blue)}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.levels-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:16px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(124,92,252,0.12),transparent)}
+.card.bull-card{border-color:rgba(0,214,143,0.18)}.card.bull-card::before{background:linear-gradient(90deg,transparent,rgba(0,214,143,0.15),transparent)}
+.card.bear-card{border-color:rgba(255,59,92,0.18)}.card.bear-card::before{background:linear-gradient(90deg,transparent,rgba(255,59,92,0.15),transparent)}
+.card.google-card{border-color:rgba(66,133,244,0.25)}.card.google-card::before{background:linear-gradient(90deg,transparent,rgba(66,133,244,0.2),transparent)}
+
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:14px 16px}
+.stat-card .s-label{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px}
+.stat-card .s-val{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:0.04em;line-height:1}
+.stat-card .s-sub{font-size:11px;color:var(--text-muted);margin-top:3px}
+
+.section-label{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.section-label::before{content:'';width:3px;height:10px;background:var(--accent);border-radius:2px;flex-shrink:0}
+
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:5px}
+input[type=text],input[type=number],input[type=date],input[type=time],select,textarea{width:100%;background:var(--bg4);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;padding:8px 11px;outline:none;transition:border-color 0.15s,box-shadow 0.15s}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,92,252,0.1)}
+select option{background:var(--bg3)}
+textarea{resize:vertical;min-height:80px;font-family:'Rajdhani',sans-serif;font-size:14px;line-height:1.5}
+
+.btn{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:9px 18px;cursor:pointer;transition:all 0.15s}
+.btn-primary{background:linear-gradient(135deg,var(--accent-d),var(--accent));color:#fff;box-shadow:0 4px 16px rgba(124,92,252,0.25)}
+.btn-primary:hover{opacity:0.9;box-shadow:0 4px 24px rgba(124,92,252,0.4)}
+.btn-ghost{background:rgba(124,92,252,0.08);color:var(--accent-g);border:1px solid rgba(124,92,252,0.2)}
+.btn-ghost:hover{background:rgba(124,92,252,0.15)}
+.btn-danger{background:rgba(255,59,92,0.1);color:var(--bear);border:1px solid rgba(255,59,92,0.2)}
+.btn-danger:hover{background:rgba(255,59,92,0.2)}
+.btn-sm{padding:5px 12px;font-size:11px}
+.btn-bull{background:rgba(0,214,143,0.12);color:var(--bull);border:1px solid rgba(0,214,143,0.2)}
+.btn-bull:hover{background:rgba(0,214,143,0.2)}
+
+.table-wrap{overflow-x:auto;border-radius:6px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:900px}
+th{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);text-align:left;padding:9px 12px;border-bottom:1px solid var(--border);background:var(--bg3);white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,0.03);vertical-align:middle;font-size:13px}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(124,92,252,0.04)}
+.td-mono{font-family:'IBM Plex Mono',monospace}
+
+.badge{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:2px 7px;border-radius:2px}
+.badge-bull{background:rgba(0,214,143,0.12);color:var(--bull);border:1px solid rgba(0,214,143,0.2)}
+.badge-bear{background:rgba(255,59,92,0.12);color:var(--bear);border:1px solid rgba(255,59,92,0.2)}
+.badge-scratch{background:rgba(240,180,41,0.12);color:var(--warn);border:1px solid rgba(240,180,41,0.2)}
+
+.callout{border-radius:4px;padding:11px 14px;font-size:13px;line-height:1.6;margin:10px 0}
+.callout-bull{background:rgba(0,214,143,0.05);border-left:2px solid var(--bull)}
+.callout-bear{background:rgba(255,59,92,0.05);border-left:2px solid var(--bear)}
+.callout-purple{background:rgba(124,92,252,0.05);border-left:2px solid var(--accent)}
+.callout-warn{background:rgba(240,180,41,0.05);border-left:2px solid var(--warn)}
+.callout-google{background:rgba(66,133,244,0.06);border-left:2px solid #4285f4}
+.callout strong{color:var(--text)}
+
+.toggle-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.toggle-btn{background:var(--bg4);border:1px solid var(--border2);color:var(--text-muted);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:5px 12px;border-radius:3px;cursor:pointer;transition:all 0.15s}
+.toggle-btn.active-bull{background:rgba(0,214,143,0.12);color:var(--bull);border-color:rgba(0,214,143,0.3)}
+.toggle-btn.active-bear{background:rgba(255,59,92,0.12);color:var(--bear);border-color:rgba(255,59,92,0.3)}
+.toggle-btn.active-scratch{background:rgba(240,180,41,0.12);color:var(--warn);border-color:rgba(240,180,41,0.3)}
+
+/* SETUP GUIDE STEPS */
+.setup-step{display:flex;gap:16px;padding:16px 0;border-bottom:1px solid var(--border);align-items:flex-start}
+.setup-step:last-child{border-bottom:none}
+.step-num-lg{font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--accent);flex-shrink:0;width:44px;line-height:1;margin-top:-2px}
+.step-body h3{font-size:16px;font-weight:700;margin-bottom:4px}
+.step-body p{font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:6px}
+.step-body code{background:var(--bg4);border:1px solid var(--border2);border-radius:3px;padding:2px 7px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent-g)}
+.step-body .link{color:var(--blue);text-decoration:underline;cursor:pointer}
+.client-id-row{display:flex;gap:8px;align-items:center;margin-top:8px}
+.client-id-row input{flex:1;font-family:'IBM Plex Mono',monospace;font-size:13px}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:28px;width:680px;max-width:95vw;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 24px 80px rgba(0,0,0,0.8)}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.modal-header h2{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:0.06em}
+.modal-close{background:none;border:none;color:var(--text-muted);font-size:22px;cursor:pointer;padding:4px;line-height:1}
+.modal-close:hover{color:var(--text)}
+
+.page-footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:0.1em}
+.footer-brand{display:flex;align-items:center;gap:10px}
+.footer-brand-name{color:var(--accent-g);font-weight:700;letter-spacing:0.14em}
+.footer-tm{font-size:7px;vertical-align:super}
+
+.mb-8{margin-bottom:8px}.mb-12{margin-bottom:12px}.mb-16{margin-bottom:16px}.mb-20{margin-bottom:20px}.mb-24{margin-bottom:24px}
+.mt-8{margin-top:8px}.mt-12{margin-top:12px}.mt-16{margin-top:16px}
+.flex{display:flex}.gap-8{gap:8px}.gap-12{gap:12px}.gap-16{gap:16px}.items-center{align-items:center}.justify-between{justify-content:space-between}.flex-wrap{flex-wrap:wrap}
+
+@media(max-width:900px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr 1fr}.levels-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.grid-2,.grid-3,.grid-4,.levels-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-wrap">
+    <div class="logo-main">FIERCE1</div>
+    <div class="logo-sub">Systems™</div>
+  </div>
+  <div class="hdr-div"></div>
+  <nav>
+    <button class="active" onclick="showTab('dashboard',this)">Dashboard</button>
+    <button onclick="showTab('log-trade',this)">Log Trade</button>
+    <button onclick="showTab('trade-log',this)">Trade Log</button>
+    <button onclick="showTab('daily-journal',this)">Daily Journal</button>
+    <button onclick="showTab('session-levels',this)">Session Levels</button>
+    <button onclick="showTab('setup-guide',this)" style="color:var(--warn)">⚙ Drive Setup</button>
+  </nav>
+  <div id="drive-bar">
+    <div id="drive-status">
+      <div class="ds-dot disconnected" id="ds-dot"></div>
+      <span id="ds-text">NOT CONNECTED</span>
+    </div>
+    <button class="btn-gdrive" id="drive-btn" onclick="handleDriveAuth()">
+      <svg viewBox="0 0 24 24"><path d="M4.433 22l-2.164-3.746L8.1 8.4l2.165 3.746zm5.581-9.668L7.85 8.586 13.083 2h4.33zm9.738 9.668H9.52l2.165-3.746h10.232z"/></svg>
+      Connect Drive
+    </button>
+  </div>
+</header>
+
+<main>
+
+<!-- ═══ SETUP GUIDE ═══ -->
+<section id="setup-guide">
+  <div class="page-title">
+    <h1>Google Drive <span class="accent">Setup Guide</span></h1>
+    <p>One-time 15-minute setup · Your data saves to Google Drive forever after</p>
+  </div>
+
+  <div class="callout callout-google mb-16">
+    <strong>What this does:</strong> After setup, every trade, journal entry, and session level you save is automatically written to a file called <code>fierce1_journal.json</code> inside a <code>FIERCE1 Systems</code> folder in your Google Drive. Open the journal on any device, sign in, and your data is right there.
+  </div>
+
+  <div class="callout callout-warn mb-16">
+    <strong>⚠ Important — Host the file on Google Drive:</strong> Google's APIs block connections from local files (<code>file://</code>). The easiest fix is to <strong>upload this HTML file to Google Drive</strong>, then open it from there. Go to drive.google.com → upload the file → right-click → Open with → Google Chrome (or just double-click). This makes Drive the host and everything works instantly.
+  </div>
+
+  <div class="grid-2 mb-16">
+    <div class="card google-card">
+      <div class="section-label">Step 1 — Create a Google Cloud Project</div>
+      <div class="setup-step" style="padding-top:0;border:none">
+        <div class="step-num-lg">1</div>
+        <div class="step-body">
+          <h3>Open Google Cloud Console</h3>
+          <p>Go to <span class="link" onclick="window.open('https://console.cloud.google.com','_blank')">console.cloud.google.com</span> and sign in with your Google account.</p>
+          <p>At the top, click the project dropdown → <strong>New Project</strong>. Name it <strong>FIERCE1 Journal</strong> and click Create. Wait ~30 seconds.</p>
+        </div>
+      </div>
+    </div>
+    <div class="card google-card">
+      <div class="section-label">Step 2 — Enable the Google Drive API</div>
+      <div class="setup-step" style="padding-top:0;border:none">
+        <div class="step-num-lg">2</div>
+        <div class="step-body">
+          <h3>Enable Drive API</h3>
+          <p>In the left sidebar go to <strong>APIs & Services → Library</strong>. Search for <strong>Google Drive API</strong>. Click it, then click <strong>Enable</strong>.</p>
+          <p>Wait for it to enable (about 10 seconds) then proceed to Step 3.</p>
+        </div>
+      </div>
+    </div>
+    <div class="card google-card">
+      <div class="section-label">Step 3 — Create OAuth Credentials</div>
+      <div class="setup-step" style="padding-top:0;border:none">
+        <div class="step-num-lg">3</div>
+        <div class="step-body">
+          <h3>Create OAuth 2.0 Client ID</h3>
+          <p>Go to <strong>APIs & Services → Credentials → Create Credentials → OAuth client ID</strong>.</p>
+          <p>If prompted to configure a consent screen first: choose <strong>External</strong>, fill in App name (<em>FIERCE1 Journal</em>), your email, click Save. Then return to Credentials.</p>
+          <p>Application type: <strong>Web application</strong>. Name: <em>FIERCE1 Journal</em>.</p>
+          <p>Under <strong>Authorized JavaScript origins</strong> add ALL of these (one per line):</p>
+          <p><code>https://drive.google.com</code> &nbsp;← most important</p>
+          <p><code>http://localhost</code></p>
+          <p><code>http://localhost:8080</code></p>
+          <p>Click <strong>Create</strong>. A popup shows your <strong>Client ID</strong> — copy it.</p>
+        </div>
+      </div>
+    </div>
+    <div class="card google-card">
+      <div class="section-label">Step 4 — Add Yourself as a Test User</div>
+      <div class="setup-step" style="padding-top:0;border:none">
+        <div class="step-num-lg">4</div>
+        <div class="step-body">
+          <h3>Add Test User (required until app is published)</h3>
+          <p>Go to <strong>APIs & Services → OAuth consent screen</strong>. Scroll to <strong>Test users</strong> → click <strong>Add Users</strong>. Enter your own Gmail address. Click Save.</p>
+          <p style="color:var(--warn)">⚠ Without this step Google will block the sign-in with an "Access blocked" error.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card google-card mb-16">
+    <div class="section-label">Step 5 — Paste Your Client ID Here</div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Copy the Client ID from the popup in Step 3 (it ends in <code>.apps.googleusercontent.com</code>) and paste it below. Click Save — you only do this once.</p>
+    <div class="client-id-row">
+      <input type="text" id="client-id-input" placeholder="123456789-abcdefg.apps.googleusercontent.com">
+      <button class="btn btn-primary" onclick="saveClientId()">Save & Activate</button>
+    </div>
+    <div id="client-id-status" style="margin-top:10px;font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--text-dim)"></div>
+  </div>
+
+  <div class="card mb-16">
+    <div class="section-label">Step 6 — Connect Google Drive</div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Once your Client ID is saved above, click the button below (or the Connect Drive button in the top-right of the header). Google will open a login popup — sign in and grant permission. That's it.</p>
+    <div class="flex gap-12">
+      <button class="btn btn-primary" onclick="handleDriveAuth()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M4.433 22l-2.164-3.746L8.1 8.4l2.165 3.746zm5.581-9.668L7.85 8.586 13.083 2h4.33zm9.738 9.668H9.52l2.165-3.746h10.232z"/></svg>
+        Connect Google Drive
+      </button>
+      <button class="btn btn-ghost" onclick="handleDriveSignOut()" id="signout-btn" style="display:none">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="callout callout-purple">
+    <strong>Recommended workflow:</strong>
+    <br>1. Upload this HTML file to your Google Drive
+    <br>2. Open it from Google Drive (right-click → Open with → Chrome)
+    <br>3. Paste your Client ID in Step 5 below and click Save & Activate
+    <br>4. Click Connect Drive — Google login popup appears — sign in — done
+    <br>5. Bookmark the Google Drive URL — use that bookmark on every device
+    <br><br>Your data file <code>fierce1_journal.json</code> will appear in a <code>FIERCE1 Systems</code> folder in your Drive. It syncs automatically every time you save a trade, journal entry, or session levels.
+  </div>
+
+  <div class="page-footer">
+    <div class="footer-brand"><span class="footer-brand-name">FIERCE1 Systems<span class="footer-tm">™</span></span><span>·</span><span>Google Drive Setup Guide</span></div>
+    <div>© 2026 FIERCE1 Systems. All rights reserved.</div>
+  </div>
+</section>
+
+<!-- ═══ DASHBOARD ═══ -->
+<section id="dashboard" class="active">
+  <div class="page-title">
+    <h1>Trading <span class="accent">Dashboard</span></h1>
+    <p id="dash-date-range">All Dates · Loading stats...</p>
+  </div>
+  <div class="grid-3 mb-20">
+    <div class="stat-card bull-card"><div class="s-label">Best Month</div><div class="s-val bull" id="s-best-month">$0.00</div><div class="s-sub" id="s-best-month-when">—</div></div>
+    <div class="stat-card bear-card"><div class="s-label">Worst Month</div><div class="s-val bear" id="s-worst-month">$0.00</div><div class="s-sub" id="s-worst-month-when">—</div></div>
+    <div class="stat-card"><div class="s-label">Average / Month</div><div class="s-val accent" id="s-avg-month">$0.00</div><div class="s-sub">per month</div></div>
+  </div>
+  <div class="grid-2 mb-20">
+    <div class="card"><div class="section-label">Performance Metrics</div><table style="min-width:unset"><tbody id="perf-left"></tbody></table></div>
+    <div class="card"><div class="section-label">Session & Day Stats</div><table style="min-width:unset"><tbody id="perf-right"></tbody></table></div>
+  </div>
+  <div class="card mb-20"><div class="section-label">Cumulative P&amp;L</div><canvas id="equity-chart" height="120" style="width:100%"></canvas></div>
+  <div class="card">
+    <div class="flex justify-between items-center mb-12">
+      <div class="section-label" style="margin-bottom:0">Recent Trades</div>
+      <button class="btn btn-ghost btn-sm" onclick="showTab('trade-log',document.querySelector('nav button:nth-child(3)'))">View All</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Date</th><th>Time</th><th>Symbol</th><th>Direction</th><th>Entry</th><th>Exit</th><th>Size</th><th>P&amp;L</th><th>Result</th><th>Setup</th></tr></thead>
+      <tbody id="recent-trades-body"></tbody></table>
+    </div>
+  </div>
+  <div class="page-footer"><div class="footer-brand"><span class="footer-brand-name">FIERCE1 Systems<span class="footer-tm">™</span></span><span>·</span><span>Trading Journal</span></div><div>© 2026 FIERCE1 Systems. All rights reserved.</div></div>
+</section>
+
+<!-- ═══ LOG TRADE ═══ -->
+<section id="log-trade">
+  <div class="page-title"><h1>Log <span class="accent">Trade</span></h1><p>Record a new trade — all fields marked * are required</p></div>
+  <div class="grid-2 mb-16">
+    <div class="card">
+      <div class="section-label">Trade Details</div>
+      <div class="grid-2">
+        <div class="form-group"><label>Date *</label><input type="date" id="t-date"></div>
+        <div class="form-group"><label>Symbol *</label><input type="text" id="t-symbol" placeholder="NQ, MNQ..." value="NQ"></div>
+        <div class="form-group"><label>Entry Time</label><input type="time" id="t-entry-time"></div>
+        <div class="form-group"><label>Exit Time</label><input type="time" id="t-exit-time"></div>
+        <div class="form-group"><label>Direction *</label>
+          <div class="toggle-row mt-8" id="direction-toggle">
+            <button class="toggle-btn" onclick="setDirection('LONG',this)">LONG</button>
+            <button class="toggle-btn" onclick="setDirection('SHORT',this)">SHORT</button>
+          </div>
+          <input type="hidden" id="t-direction">
+        </div>
+        <div class="form-group"><label>Contracts / Size *</label><input type="number" id="t-size" placeholder="1" min="0.01" step="0.01"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-label">Price & P&amp;L</div>
+      <div class="grid-2">
+        <div class="form-group"><label>Entry Price *</label><input type="number" id="t-entry" placeholder="0.00" step="0.25" oninput="calcPnl()"></div>
+        <div class="form-group"><label>Exit Price *</label><input type="number" id="t-exit" placeholder="0.00" step="0.25" oninput="calcPnl()"></div>
+        <div class="form-group"><label>P&amp;L ($) *</label><input type="number" id="t-pnl" placeholder="Auto-calculated" step="0.01"></div>
+        <div class="form-group"><label>Commission ($)</label><input type="number" id="t-commission" placeholder="0.00" step="0.01" value="0"></div>
+      </div>
+      <div class="callout callout-purple mt-12" id="pnl-preview" style="display:none">
+        <strong>P&amp;L Preview:</strong> <span id="pnl-preview-val">$0.00</span> &nbsp;·&nbsp; <span id="pts-preview">0 pts</span>
+      </div>
+    </div>
+  </div>
+  <div class="card mb-16">
+    <div class="section-label">Setup & Classification</div>
+    <div class="grid-3">
+      <div class="form-group"><label>Setup Type</label>
+        <select id="t-setup">
+          <option value="">— Select —</option>
+          <option>2AM Mid Fade</option><option>7AM Mid Fade</option>
+          <option>London High Break</option><option>London Low Break</option>
+          <option>Asia High Break</option><option>Asia Low Break</option>
+          <option>IB High Break</option><option>IB Low Break</option>
+          <option>pRTH Fade</option><option>Noon Curve PM Leg</option>
+          <option>Confluence Mid Play</option><option>Other</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Outcome</label>
+        <div class="toggle-row mt-8" id="outcome-toggle">
+          <button class="toggle-btn" onclick="setOutcome('WIN',this)">WIN</button>
+          <button class="toggle-btn" onclick="setOutcome('LOSS',this)">LOSS</button>
+          <button class="toggle-btn" onclick="setOutcome('SCRATCH',this)">SCRATCH</button>
+        </div>
+        <input type="hidden" id="t-outcome">
+      </div>
+      <div class="form-group"><label>Hold Time (minutes)</label><input type="number" id="t-hold" placeholder="e.g. 18" min="0"></div>
+    </div>
+  </div>
+  <div class="card mb-16">
+    <div class="section-label">Trade Notes & Analysis</div>
+    <div class="form-group"><label>Pre-Trade Thesis</label><textarea id="t-thesis" placeholder="Why did you take this trade? What was the setup? Which levels were in play?"></textarea></div>
+    <div class="form-group"><label>Post-Trade Review</label><textarea id="t-review" placeholder="What happened? Did price behave as expected? What did you do well / what could be improved?"></textarea></div>
+    <div class="form-group"><label>Mistakes / Lessons</label><textarea id="t-mistakes" placeholder="Any rule violations, hesitations, or early exits?" style="min-height:60px"></textarea></div>
+  </div>
+  <div class="flex gap-12">
+    <button class="btn btn-primary" onclick="saveTrade()">Save Trade</button>
+    <button class="btn btn-ghost" onclick="clearTradeForm()">Clear Form</button>
+  </div>
+</section>
+
+<!-- ═══ TRADE LOG ═══ -->
+<section id="trade-log">
+  <div class="page-title"><h1>Trade <span class="accent">Log</span></h1><p>Full trade history — click a row to view details</p></div>
+  <div class="card mb-16">
+    <div class="flex gap-12 items-center flex-wrap">
+      <div style="flex:1;min-width:160px"><input type="text" id="filter-search" placeholder="Search symbol, setup, notes..." oninput="renderTradeLog()"></div>
+      <select id="filter-outcome" onchange="renderTradeLog()" style="width:140px"><option value="">All Outcomes</option><option value="WIN">Wins</option><option value="LOSS">Losses</option><option value="SCRATCH">Scratch</option></select>
+      <select id="filter-direction" onchange="renderTradeLog()" style="width:130px"><option value="">All Directions</option><option value="LONG">Long</option><option value="SHORT">Short</option></select>
+      <input type="date" id="filter-date-from" onchange="renderTradeLog()" style="width:150px">
+      <input type="date" id="filter-date-to" onchange="renderTradeLog()" style="width:150px">
+      <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Clear</button>
+    </div>
+  </div>
+  <div class="table-wrap mb-16">
+    <table>
+      <thead><tr><th>#</th><th>Date</th><th>Time</th><th>Symbol</th><th>Dir</th><th>Entry</th><th>Exit</th><th>Size</th><th>P&amp;L</th><th>Hold</th><th>Setup</th><th>Outcome</th><th>Actions</th></tr></thead>
+      <tbody id="trade-log-body"></tbody>
+    </table>
+  </div>
+  <div class="flex justify-between items-center">
+    <div id="log-summary" style="font-size:12px;color:var(--text-muted);font-family:'IBM Plex Mono',monospace"></div>
+    <button class="btn btn-danger btn-sm" onclick="clearAllTrades()">Clear All Trades</button>
+  </div>
+</section>
+
+<!-- ═══ DAILY JOURNAL ═══ -->
+<section id="daily-journal">
+  <div class="page-title"><h1>Daily <span class="accent">Journal</span></h1><p>Track what happened during the session — saves to Google Drive automatically</p></div>
+  <div class="grid-2 mb-16">
+    <div class="card">
+      <div class="section-label">Select Journal Date</div>
+      <div class="form-group"><label>Date</label><input type="date" id="journal-date" oninput="loadJournalEntry()"></div>
+      <div class="form-group"><label>Overall Day Rating</label>
+        <div class="toggle-row" id="day-rating-toggle">
+          <button class="toggle-btn" onclick="setDayRating('A',this)">A</button>
+          <button class="toggle-btn" onclick="setDayRating('B',this)">B</button>
+          <button class="toggle-btn" onclick="setDayRating('C',this)">C</button>
+          <button class="toggle-btn" onclick="setDayRating('D',this)">D</button>
+          <button class="toggle-btn" onclick="setDayRating('F',this)">F</button>
+        </div>
+        <input type="hidden" id="j-rating">
+      </div>
+      <div class="form-group"><label>Mental State</label>
+        <select id="j-mental"><option value="">— Select —</option><option>Focused &amp; Calm</option><option>Slightly Distracted</option><option>Overconfident</option><option>Fearful / Hesitant</option><option>Frustrated</option><option>Revenge Trading Mode</option><option>Disciplined</option></select>
+      </div>
+      <div class="form-group"><label>Rules Followed?</label>
+        <select id="j-rules"><option value="">— Select —</option><option>All Rules Followed</option><option>Minor Deviations</option><option>Broke 1-2 Rules</option><option>Major Rule Violation</option></select>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-label">Pre-Market Bias</div>
+      <div class="form-group"><label>Overnight Pattern (ALN)</label>
+        <select id="j-pattern"><option value="">— Select —</option><option>London Engulfs Asia</option><option>Asia Engulfs London</option><option>London Partial Up</option><option>London Partial Down</option></select>
+      </div>
+      <div class="form-group"><label>NY Open Position vs London Mid</label>
+        <select id="j-ny-pos"><option value="">— Select —</option><option value="above">Above London Mid (77.6% hit high first)</option><option value="below">Below London Mid (74.1% hit low first)</option></select>
+      </div>
+      <div class="form-group"><label>Directional Bias</label>
+        <div class="toggle-row" id="bias-toggle">
+          <button class="toggle-btn" onclick="setBias('BULL',this)">Bullish</button>
+          <button class="toggle-btn" onclick="setBias('BEAR',this)">Bearish</button>
+          <button class="toggle-btn" onclick="setBias('NEUTRAL',this)">Neutral</button>
+        </div>
+        <input type="hidden" id="j-bias">
+      </div>
+      <div class="form-group"><label>IB Type (at 10:30 ET)</label>
+        <select id="j-ib-type"><option value="">— Select —</option><option>IB Closed Upper Half — 81% high breaks</option><option>IB Closed Lower Half — 74% low breaks</option></select>
+      </div>
+    </div>
+  </div>
+  <div class="card mb-16">
+    <div class="section-label">Session Notes</div>
+    <div class="grid-2">
+      <div class="form-group"><label>Pre-Market Plan (6:45–9:30)</label><textarea id="j-premarket" placeholder="What levels were active? 2AM mid untouched? 7AM mid position? ALN pattern?" style="min-height:100px"></textarea></div>
+      <div class="form-group"><label>AM Session Notes (9:30–12:00)</label><textarea id="j-am" placeholder="How did the open play out? IB behavior? Which levels held / broke?" style="min-height:100px"></textarea></div>
+      <div class="form-group"><label>PM Session Notes (12:00–4:00)</label><textarea id="j-pm" placeholder="Did the noon curve play out? Q2 break confirm PM direction?" style="min-height:100px"></textarea></div>
+      <div class="form-group"><label>End of Day Review</label><textarea id="j-eod" placeholder="Overall assessment. Did session match the overnight bias?" style="min-height:100px"></textarea></div>
+    </div>
+    <div class="form-group mt-12"><label>Key Lesson of the Day</label><textarea id="j-lesson" placeholder="The single most important takeaway from today's session." style="min-height:60px"></textarea></div>
+  </div>
+  <div class="flex gap-12 mb-20">
+    <button class="btn btn-primary" onclick="saveJournalEntry()">Save Journal Entry</button>
+    <button class="btn btn-ghost" onclick="clearJournalEntry()">Clear</button>
+  </div>
+  <div class="card"><div class="section-label">Journal History</div><div id="journal-history"></div></div>
+</section>
+
+<!-- ═══ SESSION LEVELS ═══ -->
+<section id="session-levels">
+  <div class="page-title"><h1>Session <span class="accent">Levels</span></h1><p>Log key reference levels for each trading day — saves to Google Drive automatically</p></div>
+  <div class="grid-2 mb-16">
+    <div class="card">
+      <div class="section-label">Select Date</div>
+      <div class="form-group"><label>Trading Date</label><input type="date" id="levels-date" oninput="loadLevels()"></div>
+      <div class="callout callout-purple mt-8" style="font-size:12px">Mark these before each session. These are your highest-probability reference points.</div>
+    </div>
+    <div class="card">
+      <div class="section-label">Quick Hit Rates Reference</div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.8;font-family:'IBM Plex Mono',monospace">
+        <div>7–8AM Mid: <span class="bull">92.1%</span> hit rate · Median 08:15</div>
+        <div>Asia High: <span class="blue">78.8%</span> hit rate · Median 08:05</div>
+        <div>London High: <span class="blue">73.9%</span> hit rate · Median 08:36</div>
+        <div>2–3AM Mid: <span class="blue">74.3%</span> hit rate · Median 08:35</div>
+        <div>Asia Low: <span class="warn">71.6%</span> hit rate · Median 08:29</div>
+        <div>London Low: <span class="warn">67.8%</span> hit rate · Median 08:39</div>
+      </div>
+    </div>
+  </div>
+  <div class="card mb-16">
+    <div class="section-label">Overnight Session Levels</div>
+    <div class="levels-grid">
+      <div class="form-group"><label>Asia High ↑</label><input type="number" id="lv-asia-high" placeholder="Price level" step="0.25"><div style="font-size:10px;color:var(--text-dim);margin-top:3px;font-family:'IBM Plex Mono',monospace">78.8% hit rate</div></div>
+      <div class="form-group"><label>Asia Low ↓</label><input type="number" id="lv-asia-low" placeholder="Price level" step="0.25"><div style="font-size:10px;color:var(--text-dim);margin-top:3px;font-family:'IBM Plex Mono',monospace">71.6% hit rate</div></div>
+      <div class="form-group"><label>London High ↑</label><input type="number" id="lv-london-high" placeholder="Price level" step="0.25"><div style="font-size:10px;color:var(--text-dim);margin-top:3px;font-family:'IBM Plex Mono',monospace">73.9% hit rate</div></div>
+      <div class="form-group"><label>London Low ↓</label><input type="number" id="lv-london-low" placeholder="Price level" step="0.25"><div style="font-size:10px;color:var(--text-dim);margin-top:3px;font-family:'IBM Plex Mono',monospace">67.8% hit rate</div></div>
+    </div>
+  </div>
+  <div class="card mb-16">
+    <div class="section-label">Prior Day & Midpoint Levels</div>
+    <div class="levels-grid">
+      <div class="form-group"><label>Prior Day High (pRTH) ↑</label><input type="number" id="lv-pd-high" placeholder="Price level" step="0.25"><div style="font-size:10px;color:var(--text-dim);margin-top:3px;font-family:'IBM Plex Mono',monospace">83.3% holds if gap</div></div>
+      <div class="form-group"><label>Prior Day Low (pRTH) ↓</label><input type="number" id="lv-pd-low" placeholder="Price level" step="0.25"><div style="font-size:10px;color:var(--text-dim);margin-top:3px;font-family:'IBM Plex Mono',monospace">83.3% holds if gap</div></div>
+      <div class="form-group"><label>2–3AM Midpoint ◆</label><input type="number" id="lv-2am-mid" placeholder="Price level" step="0.25"><div style="font-size:10px;color:var(--text-dim);margin-top:3px;font-family:'IBM Plex Mono',monospace">93.5% touch prob</div></div>
+      <div class="form-group"><label>7–8AM Midpoint ◆</label><input type="number" id="lv-7am-mid" placeholder="Price level" step="0.25"><div style="font-size:10px;color:var(--text-dim);margin-top:3px;font-family:'IBM Plex Mono',monospace">90.1% touch prob</div></div>
+    </div>
+  </div>
+  <div class="card mb-16">
+    <div class="section-label">IB Levels (Fill after 10:30 ET)</div>
+    <div class="levels-grid">
+      <div class="form-group"><label>IB30 High (9:30–10:00)</label><input type="number" id="lv-ib30-high" placeholder="Price level" step="0.25"></div>
+      <div class="form-group"><label>IB30 Low (9:30–10:00)</label><input type="number" id="lv-ib30-low" placeholder="Price level" step="0.25"></div>
+      <div class="form-group"><label>IB60 High (9:30–10:30)</label><input type="number" id="lv-ib60-high" placeholder="Price level" step="0.25" oninput="calcIBTargets()"></div>
+      <div class="form-group"><label>IB60 Low (9:30–10:30)</label><input type="number" id="lv-ib60-low" placeholder="Price level" step="0.25" oninput="calcIBTargets()"></div>
+    </div>
+    <div id="ib-targets-preview" style="display:none" class="callout callout-purple mt-12">
+      <strong>IB60 Auto-Targets:</strong> <span id="ib-targets-text" style="font-family:'IBM Plex Mono',monospace;font-size:12px"></span>
+    </div>
+  </div>
+  <div class="card mb-16"><div class="section-label">Level Notes</div><div class="form-group"><textarea id="lv-notes" placeholder="Confluences, what was touched, what held, key observations..." style="min-height:80px"></textarea></div></div>
+  <div class="flex gap-12 mb-24">
+    <button class="btn btn-primary" onclick="saveLevels()">Save Levels</button>
+    <button class="btn btn-ghost" onclick="clearLevels()">Clear</button>
+  </div>
+  <div class="card"><div class="section-label">Levels History</div><div id="levels-history"></div></div>
+  <div class="page-footer"><div class="footer-brand"><span class="footer-brand-name">FIERCE1 Systems<span class="footer-tm">™</span></span><span>·</span><span>Trading Journal</span></div><div>© 2026 FIERCE1 Systems. All rights reserved.</div></div>
+</section>
+
+</main>
+
+<!-- TRADE DETAIL MODAL -->
+<div class="modal-overlay" id="trade-modal">
+  <div class="modal">
+    <div class="modal-header"><h2 id="modal-title">Trade Detail</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div id="modal-body"></div>
+    <div class="flex gap-12 mt-16">
+      <button class="btn btn-danger btn-sm" id="modal-delete-btn">Delete Trade</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ────────────────────────────────────────────────────────────────────
+const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
+const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+const DRIVE_FILE_NAME = 'fierce1_journal.json';
+const DRIVE_FOLDER_NAME = 'FIERCE1 Systems';
+
+let CLIENT_ID = localStorage.getItem('f1s_client_id') || '';
+let tokenClient = null;
+let driveFileId = null, driveFolderId = null;
+let driveConnected = false;
+let gapiInitDone = false;
+
+// ─── ROBUST GAPI INIT ──────────────────────────────────────────────────────────
+// Polls until both gapi and google.accounts are available, then initialises.
+// Works whether scripts load fast or slow, local file or hosted.
+function waitForGapi(callback, attempts) {
+  attempts = attempts || 0;
+  if (attempts > 60) { // 15 seconds max
+    setDriveStatus('error', 'API LOAD FAILED — CHECK CONNECTION');
+    return;
+  }
+  if (typeof gapi !== 'undefined' && typeof google !== 'undefined' && google.accounts) {
+    callback();
+  } else {
+    setTimeout(() => waitForGapi(callback, attempts + 1), 250);
+  }
+}
+
+function initGapi() {
+  if (gapiInitDone) return;
+  gapiInitDone = true;
+  gapi.load('client', async () => {
+    try {
+      await gapi.client.init({ discoveryDocs: [DISCOVERY_DOC] });
+    } catch(e) {
+      // Init without discoveryDocs is fine — we use fetch() for uploads anyway
+      console.warn('gapi.client.init warning (non-fatal):', e.message || e);
+    }
+    if (CLIENT_ID) buildTokenClient();
+  });
+}
+
+function buildTokenClient() {
+  if (!CLIENT_ID) return;
+  try {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: async (resp) => {
+        if (resp.error) {
+          const msg = resp.error === 'access_denied' ? 'ACCESS DENIED — add yourself as a Test User in Google Cloud Console'
+                    : resp.error === 'popup_closed_by_user' ? 'POPUP CLOSED — try again'
+                    : 'AUTH ERROR: ' + resp.error;
+          setDriveStatus('error', msg);
+          alert('Google sign-in error:\n\n' + msg + '\n\nSee the ⚙ Drive Setup tab for help.');
+          return;
+        }
+        driveConnected = true;
+        setDriveStatus('syncing', 'CONNECTING...');
+        document.getElementById('drive-btn').textContent = '⟳ Connecting...';
+        await ensureDriveFolder();
+        await loadFromDrive();
+        setDriveStatus('connected', 'DRIVE CONNECTED');
+        document.getElementById('drive-btn').innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M4.433 22l-2.164-3.746L8.1 8.4l2.165 3.746zm5.581-9.668L7.85 8.586 13.083 2h4.33zm9.738 9.668H9.52l2.165-3.746h10.232z"/></svg> Drive Synced ✓`;
+        document.getElementById('drive-btn').classList.add('connected');
+        document.getElementById('signout-btn').style.display = 'inline-flex';
+      }
+    });
+  } catch(e) {
+    console.error('buildTokenClient failed:', e);
+    setDriveStatus('error', 'GIS INIT ERROR — see console');
+  }
+}
+
+function handleDriveAuth() {
+  if (!CLIENT_ID) {
+    showTab('setup-guide', document.querySelector('nav button:nth-child(6)'));
+    alert('You need to paste your Google Client ID first.\n\nClick the ⚙ Drive Setup tab and follow Step 5.');
+    return;
+  }
+
+  // If GAPI hasn't been kicked off yet, start it now and retry
+  if (!gapiInitDone) {
+    setDriveStatus('connecting', 'INITIALISING...');
+    waitForGapi(() => {
+      initGapi();
+      // Wait for initGapi to complete then retry auth
+      setTimeout(handleDriveAuth, 1500);
+    });
+    return;
+  }
+
+  // If tokenClient isn't ready yet (gapi.load still running), wait and retry
+  if (!tokenClient) {
+    setDriveStatus('connecting', 'LOADING...');
+    setTimeout(handleDriveAuth, 800);
+    return;
+  }
+
+  // All ready — request token
+  const existingToken = gapi.client.getToken();
+  tokenClient.requestAccessToken({ prompt: existingToken ? '' : 'consent' });
+}
+
+function handleDriveSignOut() {
+  const token = gapi.client.getToken();
+  if (token) { google.accounts.oauth2.revoke(token.access_token); gapi.client.setToken(''); }
+  driveConnected = false; driveFileId = null; driveFolderId = null;
+  setDriveStatus('disconnected','NOT CONNECTED');
+  document.getElementById('drive-btn').textContent = 'Connect Drive';
+  document.getElementById('drive-btn').classList.remove('connected');
+  document.getElementById('signout-btn').style.display = 'none';
+}
+
+// ─── DRIVE STATUS UI ───────────────────────────────────────────────────────────
+function setDriveStatus(state, text) {
+  const dot = document.getElementById('ds-dot');
+  const txt = document.getElementById('ds-text');
+  dot.className = 'ds-dot ' + state;
+  txt.textContent = text;
+}
+
+// ─── DRIVE FOLDER & FILE ───────────────────────────────────────────────────────
+async function ensureDriveFolder() {
+  try {
+    // Find or create folder
+    const folderRes = await gapi.client.drive.files.list({
+      q: `name='${DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+      fields: 'files(id,name)'
+    });
+    if (folderRes.result.files.length > 0) {
+      driveFolderId = folderRes.result.files[0].id;
+    } else {
+      const created = await gapi.client.drive.files.create({
+        resource: { name: DRIVE_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' },
+        fields: 'id'
+      });
+      driveFolderId = created.result.id;
+    }
+
+    // Find or note the data file
+    const fileRes = await gapi.client.drive.files.list({
+      q: `name='${DRIVE_FILE_NAME}' and '${driveFolderId}' in parents and trashed=false`,
+      fields: 'files(id,name)'
+    });
+    if (fileRes.result.files.length > 0) {
+      driveFileId = fileRes.result.files[0].id;
+    }
+  } catch(e) { console.error('ensureDriveFolder:', e); setDriveStatus('error','Folder error'); }
+}
+
+async function loadFromDrive() {
+  if (!driveFileId) return; // No existing file — fresh start
+  try {
+    setDriveStatus('syncing','Loading data...');
+    const res = await gapi.client.drive.files.get({ fileId: driveFileId, alt: 'media' });
+    const data = typeof res.result === 'string' ? JSON.parse(res.result) : res.result;
+    if (data.trades)   { localStorage.setItem('f1s_trades',   JSON.stringify(data.trades));   }
+    if (data.journals) { localStorage.setItem('f1s_journals', JSON.stringify(data.journals)); }
+    if (data.levels)   { localStorage.setItem('f1s_levels',   JSON.stringify(data.levels));   }
+    setDriveStatus('connected','Drive Connected');
+    renderDashboard();
+  } catch(e) { console.error('loadFromDrive:', e); setDriveStatus('error','Load error'); }
+}
+
+async function saveToDrive() {
+  if (!driveConnected) return; // Silently skip if not connected
+  setDriveStatus('syncing','Saving...');
+  const payload = {
+    trades:   DB.getTrades(),
+    journals: DB.getJournals(),
+    levels:   DB.getLevels(),
+    lastSaved: new Date().toISOString()
+  };
+  const body = JSON.stringify(payload, null, 2);
+  try {
+    if (driveFileId) {
+      // Update existing file
+      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`, {
+        method: 'PATCH',
+        headers: { 'Authorization': 'Bearer ' + gapi.client.getToken().access_token, 'Content-Type': 'application/json' },
+        body
+      });
+    } else {
+      // Create new file in folder
+      const meta = JSON.stringify({ name: DRIVE_FILE_NAME, parents: driveFolderId ? [driveFolderId] : [] });
+      const form = new FormData();
+      form.append('metadata', new Blob([meta], { type: 'application/json' }));
+      form.append('file', new Blob([body], { type: 'application/json' }));
+      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + gapi.client.getToken().access_token },
+        body: form
+      });
+      const json = await res.json();
+      driveFileId = json.id;
+    }
+    setDriveStatus('connected', '✓ Saved to Drive');
+    setTimeout(() => { if(driveConnected) setDriveStatus('connected','Drive Connected'); }, 2000);
+  } catch(e) { console.error('saveToDrive:', e); setDriveStatus('error','Save failed — check console'); }
+}
+
+// ─── CLIENT ID MANAGEMENT ──────────────────────────────────────────────────────
+function saveClientId() {
+  const val = document.getElementById('client-id-input').value.trim();
+  if (!val || !val.includes('.apps.googleusercontent.com')) {
+    document.getElementById('client-id-status').textContent = '✗ Invalid Client ID — must end in .apps.googleusercontent.com';
+    document.getElementById('client-id-status').style.color = 'var(--bear)';
+    return;
+  }
+  CLIENT_ID = val;
+  localStorage.setItem('f1s_client_id', CLIENT_ID);
+  document.getElementById('client-id-status').textContent = '✓ Client ID saved! Click Connect Drive to sign in.';
+  document.getElementById('client-id-status').style.color = 'var(--bull)';
+  // Reinit
+  // Rebuild token client with new ID
+  if (gapiInitDone) {
+    buildTokenClient();
+  } else {
+    waitForGapi(() => initGapi());
+  }
+}
+
+// ─── LOCAL DB ─────────────────────────────────────────────────────────────────
+const DB = {
+  getTrades:    () => JSON.parse(localStorage.getItem('f1s_trades')   || '[]'),
+  saveTrades:   d  => localStorage.setItem('f1s_trades',   JSON.stringify(d)),
+  getJournals:  () => JSON.parse(localStorage.getItem('f1s_journals') || '{}'),
+  saveJournals: d  => localStorage.setItem('f1s_journals', JSON.stringify(d)),
+  getLevels:    () => JSON.parse(localStorage.getItem('f1s_levels')   || '{}'),
+  saveLevels:   d  => localStorage.setItem('f1s_levels',   JSON.stringify(d)),
+};
+
+// ─── NAV ──────────────────────────────────────────────────────────────────────
+function showTab(id, btn) {
+  document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  else { const b = document.querySelector(`nav button[onclick*="${id}"]`); if(b) b.classList.add('active'); }
+  if (id === 'dashboard')     renderDashboard();
+  if (id === 'trade-log')     renderTradeLog();
+  if (id === 'daily-journal') { renderJournalHistory(); if(!document.getElementById('journal-date').value) setToday('journal-date'); }
+  if (id === 'session-levels'){ renderLevelsHistory();  if(!document.getElementById('levels-date').value)  setToday('levels-date'); }
+  if (id === 'setup-guide') {
+    const saved = localStorage.getItem('f1s_client_id');
+    if (saved) { document.getElementById('client-id-input').value = saved; document.getElementById('client-id-status').textContent = '✓ Client ID is saved'; document.getElementById('client-id-status').style.color='var(--bull)'; }
+  }
+}
+function setToday(id) { document.getElementById(id).value = new Date().toISOString().split('T')[0]; }
+
+// ─── TOGGLES ──────────────────────────────────────────────────────────────────
+let tradeDirection='', tradeOutcome='', dayRating='', dayBias='';
+function setDirection(val,btn) { tradeDirection=val; document.getElementById('t-direction').value=val; document.querySelectorAll('#direction-toggle .toggle-btn').forEach(b=>b.classList.remove('active-bull','active-bear')); btn.classList.add(val==='LONG'?'active-bull':'active-bear'); calcPnl(); }
+function setOutcome(val,btn) { tradeOutcome=val; document.getElementById('t-outcome').value=val; document.querySelectorAll('#outcome-toggle .toggle-btn').forEach(b=>b.classList.remove('active-bull','active-bear','active-scratch')); btn.classList.add(val==='WIN'?'active-bull':val==='LOSS'?'active-bear':'active-scratch'); }
+function setDayRating(val,btn) { dayRating=val; document.getElementById('j-rating').value=val; document.querySelectorAll('#day-rating-toggle .toggle-btn').forEach(b=>b.classList.remove('active-bull','active-bear','active-scratch')); btn.classList.add(val==='A'||val==='B'?'active-bull':val==='F'||val==='D'?'active-bear':'active-scratch'); }
+function setBias(val,btn) { dayBias=val; document.getElementById('j-bias').value=val; document.querySelectorAll('#bias-toggle .toggle-btn').forEach(b=>b.classList.remove('active-bull','active-bear','active-scratch')); btn.classList.add(val==='BULL'?'active-bull':val==='BEAR'?'active-bear':'active-scratch'); }
+
+// ─── PNL CALC ─────────────────────────────────────────────────────────────────
+function calcPnl() {
+  const entry=parseFloat(document.getElementById('t-entry').value), exit=parseFloat(document.getElementById('t-exit').value);
+  const size=parseFloat(document.getElementById('t-size').value)||1, dir=tradeDirection;
+  if(!entry||!exit||!dir) return;
+  const pts=dir==='LONG'?exit-entry:entry-exit;
+  const sym=(document.getElementById('t-symbol').value||'').toUpperCase();
+  const mult=sym==='MNQ'?2:20;
+  const pnl=pts*mult*size;
+  document.getElementById('t-pnl').value=pnl.toFixed(2);
+  const preview=document.getElementById('pnl-preview');
+  preview.style.display='block'; preview.className=`callout mt-12 ${pnl>=0?'callout-bull':'callout-bear'}`;
+  document.getElementById('pnl-preview-val').textContent=fmtDollar(pnl);
+  document.getElementById('pts-preview').textContent=pts.toFixed(2)+' pts';
+}
+
+function calcIBTargets() {
+  const h=parseFloat(document.getElementById('lv-ib60-high').value), l=parseFloat(document.getElementById('lv-ib60-low').value);
+  if(!h||!l||h<=l){document.getElementById('ib-targets-preview').style.display='none';return;}
+  const range=h-l, pred=Math.round(range*1.48+69);
+  document.getElementById('ib-targets-preview').style.display='block';
+  document.getElementById('ib-targets-text').innerHTML=` Range: ${range.toFixed(0)}pts · Pred RTH: ~${pred}pts · T1↑: ${(h+range*0.65).toFixed(2)} / T1↓: ${(l-range*0.65).toFixed(2)} · T2↑: ${(h+range*1.22).toFixed(2)} / T2↓: ${(l-range*1.22).toFixed(2)}`;
+}
+
+// ─── SAVE TRADE ───────────────────────────────────────────────────────────────
+async function saveTrade() {
+  const date=document.getElementById('t-date').value, symbol=document.getElementById('t-symbol').value.trim();
+  const pnl=parseFloat(document.getElementById('t-pnl').value), entry=parseFloat(document.getElementById('t-entry').value);
+  const exit=parseFloat(document.getElementById('t-exit').value), size=parseFloat(document.getElementById('t-size').value);
+  if(!date||!symbol||isNaN(pnl)||isNaN(entry)||isNaN(exit)||isNaN(size)||!tradeDirection){alert('Please fill in all required fields (Date, Symbol, Direction, Entry, Exit, Size, P&L)');return;}
+  const trade={id:Date.now(),date,symbol,direction:tradeDirection,outcome:tradeOutcome,entryTime:document.getElementById('t-entry-time').value,exitTime:document.getElementById('t-exit-time').value,entry,exit,size,pnl,commission:parseFloat(document.getElementById('t-commission').value)||0,hold:parseInt(document.getElementById('t-hold').value)||0,setup:document.getElementById('t-setup').value,thesis:document.getElementById('t-thesis').value,review:document.getElementById('t-review').value,mistakes:document.getElementById('t-mistakes').value};
+  const trades=DB.getTrades(); trades.push(trade); DB.saveTrades(trades);
+  await saveToDrive();
+  clearTradeForm(); alert('Trade saved!');
+}
+
+function clearTradeForm() {
+  ['t-date','t-symbol','t-entry-time','t-exit-time','t-direction','t-outcome','t-entry','t-exit','t-size','t-pnl','t-commission','t-hold','t-setup','t-thesis','t-review','t-mistakes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  tradeDirection=''; tradeOutcome='';
+  document.querySelectorAll('#direction-toggle .toggle-btn,#outcome-toggle .toggle-btn').forEach(b=>b.classList.remove('active-bull','active-bear','active-scratch'));
+  document.getElementById('pnl-preview').style.display='none';
+  document.getElementById('t-symbol').value='NQ'; document.getElementById('t-commission').value='0';
+}
+
+// ─── TRADE LOG RENDER ─────────────────────────────────────────────────────────
+function renderTradeLog() {
+  const trades=DB.getTrades(), search=document.getElementById('filter-search').value.toLowerCase();
+  const outcome=document.getElementById('filter-outcome').value, dir=document.getElementById('filter-direction').value;
+  const from=document.getElementById('filter-date-from').value, to=document.getElementById('filter-date-to').value;
+  const filtered=trades.filter(t=>{
+    if(outcome&&t.outcome!==outcome)return false; if(dir&&t.direction!==dir)return false;
+    if(from&&t.date<from)return false; if(to&&t.date>to)return false;
+    if(search){const hay=[t.symbol,t.setup,t.thesis,t.review,t.mistakes].join(' ').toLowerCase();if(!hay.includes(search))return false;}
+    return true;
+  }).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+  const body=document.getElementById('trade-log-body');
+  if(!filtered.length){body.innerHTML=`<tr><td colspan="13" style="text-align:center;padding:32px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;font-size:12px">No trades found</td></tr>`;return;}
+  let totalPnl=0;
+  body.innerHTML=filtered.map((t,i)=>{
+    totalPnl+=t.pnl;
+    const pc=t.pnl>0?'var(--bull)':t.pnl<0?'var(--bear)':'var(--text-muted)';
+    const badge=t.outcome==='WIN'?'badge-bull':t.outcome==='LOSS'?'badge-bear':'badge-scratch';
+    return `<tr style="cursor:pointer" onclick="showTradeDetail(${t.id})"><td class="td-mono" style="color:var(--text-dim)">${filtered.length-i}</td><td class="td-mono">${t.date}</td><td class="td-mono" style="color:var(--text-muted)">${t.entryTime||'—'}</td><td><strong>${t.symbol}</strong></td><td><span class="badge ${t.direction==='LONG'?'badge-bull':'badge-bear'}">${t.direction}</span></td><td class="td-mono">${t.entry}</td><td class="td-mono">${t.exit}</td><td class="td-mono">${t.size}</td><td class="td-mono" style="color:${pc};font-weight:700">${fmtDollar(t.pnl)}</td><td class="td-mono" style="color:var(--text-muted)">${t.hold?t.hold+'m':'—'}</td><td style="font-size:11px;color:var(--text-muted)">${t.setup||'—'}</td><td><span class="badge ${badge}">${t.outcome||'—'}</span></td><td><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteTrade(${t.id})">✕</button></td></tr>`;
+  }).join('');
+  const wins=filtered.filter(t=>t.outcome==='WIN').length, losses=filtered.filter(t=>t.outcome==='LOSS').length;
+  document.getElementById('log-summary').textContent=`${filtered.length} trades · ${wins}W ${losses}L · Win Rate: ${filtered.length?(wins/filtered.length*100).toFixed(1):0}% · Total P&L: ${fmtDollar(totalPnl)}`;
+}
+function clearFilters(){['filter-search','filter-date-from','filter-date-to'].forEach(id=>document.getElementById(id).value='');document.getElementById('filter-outcome').value='';document.getElementById('filter-direction').value='';renderTradeLog();}
+async function deleteTrade(id){if(!confirm('Delete this trade?'))return;DB.saveTrades(DB.getTrades().filter(t=>t.id!==id));await saveToDrive();renderTradeLog();renderDashboard();}
+async function clearAllTrades(){if(!confirm('Delete ALL trades? This cannot be undone.'))return;DB.saveTrades([]);await saveToDrive();renderTradeLog();renderDashboard();}
+
+// ─── TRADE DETAIL MODAL ───────────────────────────────────────────────────────
+function showTradeDetail(id) {
+  const trade=DB.getTrades().find(t=>t.id===id); if(!trade)return;
+  const pc=trade.pnl>0?'var(--bull)':trade.pnl<0?'var(--bear)':'var(--text-muted)';
+  const badge=trade.outcome==='WIN'?'badge-bull':trade.outcome==='LOSS'?'badge-bear':'badge-scratch';
+  document.getElementById('modal-title').textContent=`${trade.symbol} · ${trade.date} · ${fmtDollar(trade.pnl)}`;
+  document.getElementById('modal-body').innerHTML=`
+    <div class="grid-3 mb-16">
+      <div class="stat-card"><div class="s-label">P&amp;L</div><div class="s-val" style="color:${pc};font-size:28px">${fmtDollar(trade.pnl)}</div></div>
+      <div class="stat-card"><div class="s-label">Direction</div><div class="s-val" style="font-size:24px;color:${trade.direction==='LONG'?'var(--bull)':'var(--bear)'}">${trade.direction}</div></div>
+      <div class="stat-card"><div class="s-label">Outcome</div><div style="margin-top:8px"><span class="badge ${badge}">${trade.outcome||'N/A'}</span></div></div>
+    </div>
+    <div class="grid-2 mb-12" style="font-size:13px;font-family:'IBM Plex Mono',monospace">
+      <div><span style="color:var(--text-dim)">Entry:</span> ${trade.entry} @ ${trade.entryTime||'—'}</div>
+      <div><span style="color:var(--text-dim)">Exit:</span> ${trade.exit} @ ${trade.exitTime||'—'}</div>
+      <div><span style="color:var(--text-dim)">Size:</span> ${trade.size} contracts</div>
+      <div><span style="color:var(--text-dim)">Hold:</span> ${trade.hold||0} minutes</div>
+      <div><span style="color:var(--text-dim)">Commission:</span> ${fmtDollar(trade.commission)}</div>
+      <div><span style="color:var(--text-dim)">Setup:</span> ${trade.setup||'—'}</div>
+    </div>
+    ${trade.thesis?`<div class="callout callout-purple mb-12"><strong>Thesis:</strong><br>${trade.thesis}</div>`:''}
+    ${trade.review?`<div class="callout callout-purple mb-12"><strong>Review:</strong><br>${trade.review}</div>`:''}
+    ${trade.mistakes?`<div class="callout callout-bear mb-12"><strong>Mistakes / Lessons:</strong><br>${trade.mistakes}</div>`:''}`;
+  document.getElementById('modal-delete-btn').onclick=()=>{if(confirm('Delete this trade?')){deleteTrade(id);closeModal();}};
+  document.getElementById('trade-modal').classList.add('open');
+}
+function closeModal(){document.getElementById('trade-modal').classList.remove('open');}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+function renderDashboard() {
+  const trades=DB.getTrades().sort((a,b)=>a.date.localeCompare(b.date));
+  if(!trades.length){document.getElementById('dash-date-range').textContent='No trades yet — log your first trade!';['perf-left','perf-right'].forEach(id=>document.getElementById(id).innerHTML='<tr><td style="color:var(--text-dim);font-size:12px;padding:16px">No data</td></tr>');renderEquityChart([]);document.getElementById('recent-trades-body').innerHTML='<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text-dim);font-size:12px">No trades logged yet</td></tr>';return;}
+  document.getElementById('dash-date-range').textContent=`All Dates · ${trades[0].date} — ${trades[trades.length-1].date}`;
+  const totalPnl=trades.reduce((s,t)=>s+t.pnl,0), totalComm=trades.reduce((s,t)=>s+(t.commission||0),0);
+  const wins=trades.filter(t=>t.outcome==='WIN'), losses=trades.filter(t=>t.outcome==='LOSS'), scratches=trades.filter(t=>t.outcome==='SCRATCH');
+  const wr=trades.length?(wins.length/trades.length*100).toFixed(1):0;
+  const avgWin=wins.length?wins.reduce((s,t)=>s+t.pnl,0)/wins.length:0;
+  const avgLoss=losses.length?losses.reduce((s,t)=>s+t.pnl,0)/losses.length:0;
+  const largestWin=wins.length?Math.max(...wins.map(t=>t.pnl)):0, largestLoss=losses.length?Math.min(...losses.map(t=>t.pnl)):0;
+  const pfGross=wins.reduce((s,t)=>s+t.pnl,0), plGross=Math.abs(losses.reduce((s,t)=>s+t.pnl,0));
+  const profitFactor=plGross>0?(pfGross/plGross).toFixed(2):'∞';
+  const avgHold=trades.filter(t=>t.hold).length?(trades.reduce((s,t)=>s+(t.hold||0),0)/trades.length).toFixed(0):0;
+  const avgWinHold=wins.filter(t=>t.hold).length?(wins.reduce((s,t)=>s+(t.hold||0),0)/wins.length).toFixed(0):0;
+  const avgLossHold=losses.filter(t=>t.hold).length?(losses.reduce((s,t)=>s+(t.hold||0),0)/losses.length).toFixed(0):0;
+  const expectancy=wins.length&&losses.length?((wins.length/trades.length)*avgWin+(losses.length/trades.length)*avgLoss):0;
+  let mxW=0,mxL=0,cW=0,cL=0;
+  trades.forEach(t=>{if(t.outcome==='WIN'){cW++;cL=0;mxW=Math.max(mxW,cW);}else if(t.outcome==='LOSS'){cL++;cW=0;mxL=Math.max(mxL,cL);}else{cW=0;cL=0;}});
+  let peak=0,dd=0,maxDD=0,running=0;
+  trades.forEach(t=>{running+=t.pnl;if(running>peak)peak=running;dd=peak-running;if(dd>maxDD)maxDD=dd;});
+  const byMonth={};
+  trades.forEach(t=>{const m=t.date.slice(0,7);byMonth[m]=(byMonth[m]||0)+t.pnl;});
+  const months=Object.values(byMonth), bestM=months.length?Math.max(...months):0, worstM=months.length?Math.min(...months):0, avgM=months.length?months.reduce((s,v)=>s+v,0)/months.length:0;
+  const bestMKey=Object.keys(byMonth).find(k=>byMonth[k]===bestM)||'—', worstMKey=Object.keys(byMonth).find(k=>byMonth[k]===worstM)||'—';
+  const days=[...new Set(trades.map(t=>t.date))], winDays=[...new Set(wins.map(t=>t.date))].length, lossDays=[...new Set(losses.map(t=>t.date))].length;
+  const avgDailyPnl=days.length?totalPnl/days.length:0;
+  document.getElementById('s-best-month').textContent=fmtDollar(bestM);
+  document.getElementById('s-best-month-when').textContent='in '+formatMonth(bestMKey);
+  document.getElementById('s-worst-month').textContent=fmtDollar(worstM);
+  document.getElementById('s-worst-month-when').textContent='in '+formatMonth(worstMKey);
+  document.getElementById('s-avg-month').textContent=fmtDollar(avgM);
+  const sr=(l,v,c='')=>`<tr><td style="color:var(--text-muted);font-size:13px">${l}</td><td class="td-mono" style="text-align:right;font-weight:700;color:${c||'var(--text)'}">${v}</td></tr>`;
+  const pc=v=>v>0?'var(--bull)':v<0?'var(--bear)':'var(--text-muted)';
+  document.getElementById('perf-left').innerHTML=[sr('Total P&L',fmtDollar(totalPnl),pc(totalPnl)),sr('Average Trade P&L',fmtDollar(trades.length?totalPnl/trades.length:0),pc(totalPnl)),sr('Average Winning Trade',fmtDollar(avgWin),'var(--bull)'),sr('Average Losing Trade',fmtDollar(avgLoss),'var(--bear)'),sr('Total Number of Trades',trades.length),sr('Number of Winning Trades',wins.length),sr('Number of Losing Trades',losses.length),sr('Number of Scratch Trades',scratches.length),sr('Max Consecutive Wins',mxW),sr('Max Consecutive Losses',mxL),sr('Total Commissions',fmtDollar(totalComm)),sr('Largest Profit',fmtDollar(largestWin),'var(--bull)'),sr('Largest Loss',fmtDollar(largestLoss),'var(--bear)'),sr('Avg Hold Time (All)',avgHold+' min'),sr('Avg Hold Time (Winning)',avgWinHold+' min'),sr('Avg Hold Time (Losing)',avgLossHold+' min'),sr('Profit Factor',profitFactor)].join('');
+  document.getElementById('perf-right').innerHTML=[sr('Total Trading Days',days.length),sr('Winning Days',winDays,'var(--bull)'),sr('Losing Days',lossDays,'var(--bear)'),sr('Win Rate %',wr+'%',parseFloat(wr)>=50?'var(--bull)':'var(--bear)'),sr('Average Daily P&L',fmtDollar(avgDailyPnl),pc(avgDailyPnl)),sr('Trade Expectancy',fmtDollar(expectancy),pc(expectancy)),sr('Max Drawdown',fmtDollar(-maxDD),'var(--bear)'),sr('Best Month P&L',fmtDollar(bestM),'var(--bull)'),sr('Worst Month P&L',fmtDollar(worstM),'var(--bear)'),sr('Average / Month',fmtDollar(avgM),pc(avgM))].join('');
+  let cum=0; renderEquityChart(trades.map(t=>{cum+=t.pnl;return cum;}));
+  const recent=[...trades].reverse().slice(0,10);
+  document.getElementById('recent-trades-body').innerHTML=recent.map(t=>{const pc2=t.pnl>0?'var(--bull)':t.pnl<0?'var(--bear)':'var(--text-muted)';const badge=t.outcome==='WIN'?'badge-bull':t.outcome==='LOSS'?'badge-bear':'badge-scratch';return `<tr style="cursor:pointer" onclick="showTradeDetail(${t.id})"><td class="td-mono">${t.date}</td><td class="td-mono" style="color:var(--text-muted)">${t.entryTime||'—'}</td><td><strong>${t.symbol}</strong></td><td><span class="badge ${t.direction==='LONG'?'badge-bull':'badge-bear'}">${t.direction}</span></td><td class="td-mono">${t.entry}</td><td class="td-mono">${t.exit}</td><td class="td-mono">${t.size}</td><td class="td-mono" style="color:${pc2};font-weight:700">${fmtDollar(t.pnl)}</td><td><span class="badge ${badge}">${t.outcome||'—'}</span></td><td style="font-size:11px;color:var(--text-muted)">${t.setup||'—'}</td></tr>`;}).join('');
+}
+
+function renderEquityChart(data) {
+  const canvas=document.getElementById('equity-chart'), ctx=canvas.getContext('2d');
+  const W=canvas.offsetWidth||800, H=120; canvas.width=W; canvas.height=H; ctx.clearRect(0,0,W,H);
+  if(!data.length){ctx.fillStyle='rgba(124,92,252,0.05)';ctx.fillRect(0,0,W,H);ctx.fillStyle='#5a6070';ctx.font='12px IBM Plex Mono,monospace';ctx.textAlign='center';ctx.fillText('No trade data yet',W/2,H/2+4);return;}
+  const min=Math.min(0,...data), max=Math.max(0,...data), range=max-min||1, pad=12;
+  const toX=i=>pad+(i/(data.length-1||1))*(W-pad*2), toY=v=>pad+(1-(v-min)/range)*(H-pad*2);
+  const zeroY=toY(0); ctx.strokeStyle='rgba(124,92,252,0.2)'; ctx.lineWidth=1; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(pad,zeroY); ctx.lineTo(W-pad,zeroY); ctx.stroke(); ctx.setLineDash([]);
+  const last=data[data.length-1], grad=ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,last>=0?'rgba(0,214,143,0.25)':'rgba(255,59,92,0.05)');
+  grad.addColorStop(1,last>=0?'rgba(0,214,143,0.02)':'rgba(255,59,92,0.25)');
+  ctx.beginPath(); ctx.moveTo(toX(0),toY(0)); data.forEach((v,i)=>ctx.lineTo(toX(i),toY(v))); ctx.lineTo(toX(data.length-1),toY(0)); ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
+  ctx.beginPath(); ctx.strokeStyle=last>=0?'#00d68f':'#ff3b5c'; ctx.lineWidth=2; data.forEach((v,i)=>i===0?ctx.moveTo(toX(i),toY(v)):ctx.lineTo(toX(i),toY(v))); ctx.stroke();
+}
+
+// ─── JOURNAL ──────────────────────────────────────────────────────────────────
+function loadJournalEntry() {
+  const date=document.getElementById('journal-date').value; if(!date)return;
+  const entry=DB.getJournals()[date]||{};
+  ['j-premarket','j-am','j-pm','j-eod','j-lesson'].forEach(id=>document.getElementById(id).value=entry[id.replace('j-','')]||'');
+  document.getElementById('j-mental').value=entry.mental||''; document.getElementById('j-rules').value=entry.rules||'';
+  document.getElementById('j-pattern').value=entry.pattern||''; document.getElementById('j-ny-pos').value=entry.nyPos||'';
+  dayRating=entry.rating||''; dayBias=entry.bias||'';
+  document.getElementById('j-rating').value=dayRating; document.getElementById('j-bias').value=dayBias;
+  document.querySelectorAll('#day-rating-toggle .toggle-btn').forEach(b=>{b.classList.remove('active-bull','active-bear','active-scratch');if(dayRating&&b.textContent===dayRating)b.classList.add(dayRating==='A'||dayRating==='B'?'active-bull':dayRating==='F'||dayRating==='D'?'active-bear':'active-scratch');});
+  document.querySelectorAll('#bias-toggle .toggle-btn').forEach(b=>{b.classList.remove('active-bull','active-bear','active-scratch');if(dayBias==='BULL'&&b.textContent==='Bullish')b.classList.add('active-bull');if(dayBias==='BEAR'&&b.textContent==='Bearish')b.classList.add('active-bear');if(dayBias==='NEUTRAL'&&b.textContent==='Neutral')b.classList.add('active-scratch');});
+}
+
+async function saveJournalEntry() {
+  const date=document.getElementById('journal-date').value; if(!date){alert('Please select a date');return;}
+  const journals=DB.getJournals();
+  journals[date]={rating:dayRating,mental:document.getElementById('j-mental').value,rules:document.getElementById('j-rules').value,bias:dayBias,pattern:document.getElementById('j-pattern').value,nyPos:document.getElementById('j-ny-pos').value,premarket:document.getElementById('j-premarket').value,am:document.getElementById('j-am').value,pm:document.getElementById('j-pm').value,eod:document.getElementById('j-eod').value,lesson:document.getElementById('j-lesson').value};
+  DB.saveJournals(journals); await saveToDrive(); renderJournalHistory(); alert('Journal entry saved!');
+}
+
+function clearJournalEntry() {
+  ['j-premarket','j-am','j-pm','j-eod','j-lesson'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('j-mental').value=''; document.getElementById('j-rules').value='';
+  document.getElementById('j-pattern').value=''; document.getElementById('j-ny-pos').value='';
+  dayRating=''; dayBias=''; document.getElementById('j-rating').value=''; document.getElementById('j-bias').value='';
+  document.querySelectorAll('#day-rating-toggle .toggle-btn,#bias-toggle .toggle-btn').forEach(b=>b.classList.remove('active-bull','active-bear','active-scratch'));
+}
+
+function renderJournalHistory() {
+  const journals=DB.getJournals(), keys=Object.keys(journals).sort().reverse(), el=document.getElementById('journal-history');
+  if(!keys.length){el.innerHTML='<div style="color:var(--text-dim);font-size:12px;font-family:IBM Plex Mono,monospace;padding:16px">No journal entries yet</div>';return;}
+  el.innerHTML=keys.map(date=>{
+    const e=journals[date], rc=e.rating==='A'||e.rating==='B'?'var(--bull)':e.rating==='F'||e.rating==='D'?'var(--bear)':'var(--warn)';
+    return `<div style="padding:12px 0;border-bottom:1px solid var(--border);display:flex;gap:16px;align-items:flex-start"><div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-muted);flex-shrink:0;width:90px">${date}</div>${e.rating?`<div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:${rc};flex-shrink:0">${e.rating}</div>`:''}<div style="flex:1;min-width:0">${e.pattern?`<div style="font-size:12px;color:var(--accent-g);margin-bottom:3px">${e.pattern}</div>`:''} ${e.lesson?`<div style="font-size:13px;color:var(--text-muted)">${e.lesson.slice(0,120)}${e.lesson.length>120?'...':''}</div>`:''}</div><div style="display:flex;gap:8px;flex-shrink:0"><button class="btn btn-ghost btn-sm" onclick="loadJournalFromHistory('${date}')">Load</button><button class="btn btn-danger btn-sm" onclick="deleteJournal('${date}')">✕</button></div></div>`;
+  }).join('');
+}
+
+function loadJournalFromHistory(date){document.getElementById('journal-date').value=date;loadJournalEntry();}
+async function deleteJournal(date){if(!confirm('Delete journal entry for '+date+'?'))return;const j=DB.getJournals();delete j[date];DB.saveJournals(j);await saveToDrive();renderJournalHistory();}
+
+// ─── LEVELS ───────────────────────────────────────────────────────────────────
+const LEVEL_IDS=['lv-asia-high','lv-asia-low','lv-london-high','lv-london-low','lv-pd-high','lv-pd-low','lv-2am-mid','lv-7am-mid','lv-ib30-high','lv-ib30-low','lv-ib60-high','lv-ib60-low','lv-notes'];
+function loadLevels(){const date=document.getElementById('levels-date').value;if(!date)return;const entry=DB.getLevels()[date]||{};LEVEL_IDS.forEach(id=>document.getElementById(id).value=entry[id]||'');calcIBTargets();}
+
+async function saveLevels(){
+  const date=document.getElementById('levels-date').value;if(!date){alert('Please select a date');return;}
+  const levels=DB.getLevels(), entry={};
+  LEVEL_IDS.forEach(id=>entry[id]=document.getElementById(id).value);
+  levels[date]=entry; DB.saveLevels(levels); await saveToDrive(); renderLevelsHistory(); alert('Levels saved!');
+}
+
+function clearLevels(){LEVEL_IDS.forEach(id=>document.getElementById(id).value='');document.getElementById('ib-targets-preview').style.display='none';}
+
+function renderLevelsHistory(){
+  const levels=DB.getLevels(), keys=Object.keys(levels).sort().reverse(), el=document.getElementById('levels-history');
+  if(!keys.length){el.innerHTML='<div style="color:var(--text-dim);font-size:12px;font-family:IBM Plex Mono,monospace;padding:16px">No levels logged yet</div>';return;}
+  el.innerHTML=keys.map(date=>{
+    const e=levels[date];
+    const ll=[e['lv-asia-high']?`AH:${e['lv-asia-high']}`:'',e['lv-asia-low']?`AL:${e['lv-asia-low']}`:'',e['lv-london-high']?`LH:${e['lv-london-high']}`:'',e['lv-london-low']?`LL:${e['lv-london-low']}`:'',e['lv-pd-high']?`PDH:${e['lv-pd-high']}`:'',e['lv-pd-low']?`PDL:${e['lv-pd-low']}`:'',e['lv-2am-mid']?`2AM:${e['lv-2am-mid']}`:'',e['lv-7am-mid']?`7AM:${e['lv-7am-mid']}`:'',e['lv-ib60-high']?`IB↑:${e['lv-ib60-high']}`:'',e['lv-ib60-low']?`IB↓:${e['lv-ib60-low']}`:''].filter(Boolean).join(' · ');
+    return `<div style="padding:12px 0;border-bottom:1px solid var(--border);display:flex;gap:16px;align-items:flex-start"><div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-muted);flex-shrink:0;width:90px">${date}</div><div style="flex:1;min-width:0"><div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent-g)">${ll||'—'}</div>${e['lv-notes']?`<div style="font-size:12px;color:var(--text-muted);margin-top:4px">${e['lv-notes'].slice(0,100)}${e['lv-notes'].length>100?'...':''}</div>`:''}</div><div style="display:flex;gap:8px;flex-shrink:0"><button class="btn btn-ghost btn-sm" onclick="loadLevelsFromHistory('${date}')">Load</button><button class="btn btn-danger btn-sm" onclick="deleteLevels('${date}')">✕</button></div></div>`;
+  }).join('');
+}
+function loadLevelsFromHistory(date){document.getElementById('levels-date').value=date;loadLevels();}
+async function deleteLevels(date){if(!confirm('Delete levels for '+date+'?'))return;const l=DB.getLevels();delete l[date];DB.saveLevels(l);await saveToDrive();renderLevelsHistory();}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function fmtDollar(v){const abs=Math.abs(v).toFixed(2);return(v<0?'-$':'$')+parseFloat(abs).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function formatMonth(str){if(!str||str==='—')return'—';const[y,m]=str.split('-');const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return(months[parseInt(m)-1]||m)+' '+y;}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',()=>{
+  setToday('t-date');
+  renderDashboard();
+  // Show client ID if already saved
+  if(CLIENT_ID){document.getElementById('client-id-input').value=CLIENT_ID;document.getElementById('client-id-status').textContent='✓ Client ID is saved';document.getElementById('client-id-status').style.color='var(--bull)';}
+  // Pre-warm GAPI as soon as page loads so it's ready when user clicks Connect
+  waitForGapi(() => initGapi());
+  // Close modal on overlay click
+  document.getElementById('trade-modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+  // Resize chart
+  window.addEventListener('resize',()=>{if(document.getElementById('dashboard').classList.contains('active'))renderDashboard();});
+});
+</script>
+</body>
+</html>
